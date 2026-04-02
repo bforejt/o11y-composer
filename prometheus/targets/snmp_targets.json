@@ -1,0 +1,25 @@
+[
+  {
+    "targets": [
+      "192.168.1.1"
+    ],
+    "labels": {
+      "site": "lab",
+      "role": "router",
+      "vendor": "example",
+      "hostname": "lab-rtr01"
+    }
+  },
+  {
+    "targets": [
+      "192.168.1.2",
+      "192.168.1.3"
+    ],
+    "labels": {
+      "site": "lab",
+      "role": "switch",
+      "vendor": "example",
+      "hostname": "lab-sw01"
+    }
+  }
+]

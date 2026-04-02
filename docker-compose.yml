@@ -1,0 +1,243 @@
+# =============================================================================
+# Network Observability Stack
+# Prometheus + Grafana + Loki + Alertmanager + Alloy + SNMP + Telegraf + MCP
+#
+# Profiles:
+#   (default)   — core stack: prometheus, grafana, loki, alertmanager, postgres, alloy
+#   snmp        — adds snmp-exporter
+#   telemetry   — adds telegraf (gNMI streaming)
+#   mcp         — adds MCP server(s) for LLM integration
+#
+# Usage:
+#   docker compose up -d                        # core only
+#   docker compose --profile snmp up -d         # core + SNMP
+#   docker compose --profile telemetry up -d    # core + gNMI
+#   docker compose --profile mcp up -d          # core + MCP
+#   docker compose --profile snmp --profile telemetry --profile mcp up -d  # all
+# =============================================================================
+
+networks:
+  o11y:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+    driver: local
+  loki_data:
+    driver: local
+  grafana_data:
+    driver: local
+  postgres_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — Grafana backend database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    restart: unless-stopped
+    networks:
+      - o11y
+    environment:
+      POSTGRES_DB: ${GF_DATABASE_NAME:-grafana}
+      POSTGRES_USER: ${GF_DATABASE_USER:-grafana}
+      POSTGRES_PASSWORD: ${GF_DATABASE_PASSWORD:?GF_DATABASE_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GF_DATABASE_USER:-grafana}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Prometheus — Metrics backend
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:${PROMETHEUS_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - o11y
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts:/etc/prometheus/alerts:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+    depends_on:
+      - alloy
+
+  # ---------------------------------------------------------------------------
+  # Loki — Log aggregation backend
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:${LOKI_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - o11y
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    command: -config.file=/etc/loki/loki-config.yml
+    volumes:
+      - loki_data:/loki
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager — Alert routing and notification
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:${ALERTMANAGER_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - o11y
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    volumes:
+      - alertmanager_data:/alertmanager
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  # ---------------------------------------------------------------------------
+  # Grafana Alloy — Syslog listener, log collection, push to Loki
+  # ---------------------------------------------------------------------------
+  alloy:
+    image: grafana/alloy:${ALLOY_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - o11y
+    ports:
+      - "${ALLOY_SYSLOG_UDP_PORT:-1514}:1514/udp"
+      - "${ALLOY_SYSLOG_TCP_PORT:-1514}:1514/tcp"
+      - "12345:12345"              # Alloy UI
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+    command:
+      - "run"
+      - "/etc/alloy/config.alloy"
+      - "--server.http.listen-addr=0.0.0.0:12345"
+    depends_on:
+      - loki
+
+  # ---------------------------------------------------------------------------
+  # Grafana — Visualization and dashboards
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana-oss:${GRAFANA_VERSION:-latest}
+    restart: unless-stopped
+    networks:
+      - o11y
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres:5432
+      GF_DATABASE_NAME: ${GF_DATABASE_NAME:-grafana}
+      GF_DATABASE_USER: ${GF_DATABASE_USER:-grafana}
+      GF_DATABASE_PASSWORD: ${GF_DATABASE_PASSWORD:?GF_DATABASE_PASSWORD must be set}
+      GF_DATABASE_SSL_MODE: disable
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:?GF_ADMIN_PASSWORD must be set}
+      GF_INSTALL_PLUGINS: ${GF_INSTALL_PLUGINS:-}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # SNMP Exporter — SNMP polling for Prometheus
+  # ---------------------------------------------------------------------------
+  snmp-exporter:
+    image: prom/snmp-exporter:${SNMP_EXPORTER_VERSION:-latest}
+    restart: unless-stopped
+    profiles:
+      - snmp
+    networks:
+      - o11y
+    ports:
+      - "${SNMP_EXPORTER_PORT:-9116}:9116"
+    volumes:
+      - ./snmp-exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
+
+  # ---------------------------------------------------------------------------
+  # Telegraf — gNMI streaming telemetry collector
+  # ---------------------------------------------------------------------------
+  telegraf:
+    image: telegraf:${TELEGRAF_VERSION:-latest}
+    restart: unless-stopped
+    profiles:
+      - telemetry
+    networks:
+      - o11y
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+
+  # ---------------------------------------------------------------------------
+  # MCP Server — Grafana MCP (official, covers Prometheus + Loki + dashboards)
+  #
+  # Exposes SSE endpoint for Claude Code, Cursor, VS Code, etc.
+  # Connect via: http://HOST:8686/sse
+  # ---------------------------------------------------------------------------
+  mcp-grafana:
+    image: ghcr.io/grafana/mcp-grafana:${MCP_GRAFANA_VERSION:-latest}
+    restart: unless-stopped
+    profiles:
+      - mcp
+    networks:
+      - o11y
+    ports:
+      - "${MCP_GRAFANA_PORT:-8686}:8686"
+    environment:
+      GRAFANA_URL: http://grafana:3000
+      GRAFANA_API_KEY: ${MCP_GRAFANA_API_KEY:-}
+    command:
+      - "--transport=sse"
+      - "--port=8686"
+      - "--disable-write"
+    depends_on:
+      - grafana
+
+  # ---------------------------------------------------------------------------
+  # MCP Server — Deep Prometheus MCP (tjhop, Go-based)
+  #
+  # Uncomment to enable. Adds TSDB introspection, recording rule suggestions,
+  # metric cardinality analysis, and Prometheus documentation search.
+  # Justify this alongside mcp-grafana when you need deeper PromQL development
+  # tooling beyond what the Grafana MCP provides.
+  #
+  # Connect via: http://HOST:8687/sse
+  # ---------------------------------------------------------------------------
+  # mcp-prometheus:
+  #   image: ghcr.io/tjhop/prometheus-mcp-server:${MCP_PROMETHEUS_VERSION:-latest}
+  #   restart: unless-stopped
+  #   profiles:
+  #     - mcp
+  #   networks:
+  #     - o11y
+  #   ports:
+  #     - "${MCP_PROMETHEUS_PORT:-8687}:8687"
+  #   environment:
+  #     PROMETHEUS_MCP_PROMETHEUS_URL: http://prometheus:9090
+  #   command:
+  #     - "--transport=sse"
+  #     - "--listen-address=0.0.0.0:8687"
+  #   depends_on:
+  #     - prometheus

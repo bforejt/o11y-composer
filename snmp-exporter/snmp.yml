@@ -1,0 +1,71 @@
+# =============================================================================
+# SNMP Exporter Configuration
+#
+# The snmp_exporter Docker image ships with a default snmp.yml that includes
+# the if_mib module with public_v2 auth. This file overrides that default.
+#
+# For custom MIBs, use the snmp_exporter generator:
+#   docker run --rm -v "${PWD}:/opt" prom/snmp-generator generate
+#
+# Generator docs: https://github.com/prometheus/snmp_exporter/tree/main/generator
+#
+# Common modules to generate:
+#   - if_mib        (interface counters, status — works with most devices)
+#   - cisco_wlc     (Cisco wireless controllers)
+#   - arista_sw     (Arista switches)
+#   - paloalto      (Palo Alto firewalls)
+#   - synology      (Synology NAS)
+#   - apc_ups       (APC UPS devices)
+#
+# =============================================================================
+
+auths:
+  # SNMPv2c with community string "public"
+  public_v2:
+    community: public
+    security_level: noAuthNoPriv
+    auth_protocol: MD5
+    priv_protocol: DES
+    version: 2
+
+  # SNMPv3 template — customize for your environment
+  # v3_readonly:
+  #   security_level: authPriv
+  #   username: snmp_monitor
+  #   password: auth_password_here
+  #   auth_protocol: SHA
+  #   priv_protocol: AES
+  #   priv_password: priv_password_here
+  #   version: 3
+
+modules:
+  # Default if_mib module — covers interface status and counters.
+  # This is a minimal config; the built-in snmp.yml from prom/snmp-exporter
+  # has a much more complete if_mib. Remove this file to use the built-in.
+  if_mib:
+    walk:
+      - ifDescr
+      - ifType
+      - ifSpeed
+      - ifHighSpeed
+      - ifAdminStatus
+      - ifOperStatus
+      - ifHCInOctets
+      - ifHCOutOctets
+      - ifInErrors
+      - ifOutErrors
+      - ifInDiscards
+      - ifOutDiscards
+      - ifAlias
+    lookups:
+      - source_indexes: [ifIndex]
+        lookup: ifDescr
+      - source_indexes: [ifIndex]
+        lookup: ifAlias
+    overrides:
+      ifType:
+        type: EnumAsInfo
+      ifAdminStatus:
+        type: EnumAsStateSet
+      ifOperStatus:
+        type: EnumAsStateSet

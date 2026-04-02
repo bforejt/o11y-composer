@@ -1,0 +1,81 @@
+// =============================================================================
+// Grafana Alloy Configuration
+//
+// Components:
+//   1. Syslog listener (UDP + TCP on port 1514)
+//   2. Relabeling for consistent label schema
+//   3. Push to Loki
+//
+// Point network devices to send syslog to HOST:1514 (UDP or TCP).
+// Uses port 1514 to avoid requiring root privileges for port 514.
+// On the host, redirect 514 → 1514 with iptables if needed:
+//   iptables -t nat -A PREROUTING -p udp --dport 514 -j REDIRECT --to-port 1514
+//   iptables -t nat -A PREROUTING -p tcp --dport 514 -j REDIRECT --to-port 1514
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Syslog source — listens for RFC5424 and RFC3164 messages
+// ---------------------------------------------------------------------------
+loki.source.syslog "network_syslog" {
+  listener {
+    address      = "0.0.0.0:1514"
+    protocol     = "udp"
+    label        = "syslog_udp"
+    idle_timeout = "0s"
+  }
+
+  listener {
+    address      = "0.0.0.0:1514"
+    protocol     = "tcp"
+    label        = "syslog_tcp"
+    idle_timeout = "120s"
+  }
+
+  forward_to = [loki.relabel.syslog_labels.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// Relabel — normalize labels for cross-telemetry correlation in Grafana
+// ---------------------------------------------------------------------------
+loki.relabel "syslog_labels" {
+  forward_to = [loki.write.loki_push.receiver]
+
+  // Keep syslog severity as a label
+  rule {
+    source_labels = ["__syslog_message_severity"]
+    target_label  = "severity"
+  }
+
+  // Keep syslog facility
+  rule {
+    source_labels = ["__syslog_message_facility"]
+    target_label  = "facility"
+  }
+
+  // Use syslog hostname as the instance label (matches Prometheus convention)
+  rule {
+    source_labels = ["__syslog_message_hostname"]
+    target_label  = "instance"
+  }
+
+  // Keep app name
+  rule {
+    source_labels = ["__syslog_message_app_name"]
+    target_label  = "app"
+  }
+
+  // Static job label for Grafana datasource correlation
+  rule {
+    target_label = "job"
+    replacement  = "syslog"
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Loki push — send processed logs to Loki
+// ---------------------------------------------------------------------------
+loki.write "loki_push" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

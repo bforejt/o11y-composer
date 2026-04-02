@@ -1,0 +1,25 @@
+# =============================================================================
+# Grafana Dashboard Provisioning
+#
+# Dashboards placed in /etc/grafana/provisioning/dashboards/json/ will be
+# auto-imported on startup. Add exported JSON dashboard files there.
+#
+# Recommended community dashboards (import via Grafana UI → Dashboards → Import):
+#   - 1860   — Node Exporter Full
+#   - 11462  — SNMP Interface Throughput
+#   - 13407  — Loki Dashboard
+#   - 14981  — Telegraf System Dashboard
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: default
+    orgId: 1
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
+      foldersFromFilesStructure: true

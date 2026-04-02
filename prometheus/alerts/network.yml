@@ -1,0 +1,65 @@
+# =============================================================================
+# Network Alerting Rules
+#
+# Starter rules for SNMP-monitored network devices.
+# Customize thresholds and add device-specific rules as needed.
+# =============================================================================
+
+groups:
+  - name: network_interface
+    interval: 60s
+    rules:
+
+      # Interface down (admin up, oper down)
+      - alert: InterfaceDown
+        expr: ifOperStatus{ifAdminStatus="1"} == 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Interface {{ $labels.ifDescr }} down on {{ $labels.instance }}"
+          description: "Interface is admin-up but operationally down for 5+ minutes."
+
+      # High interface utilization (>80% of speed)
+      - alert: InterfaceHighUtilization
+        expr: |
+          (rate(ifHCInOctets[5m]) * 8 / ifHighSpeed / 1e6) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High inbound utilization on {{ $labels.ifDescr }} ({{ $labels.instance }})"
+          description: "Interface utilization exceeds 80% for 10+ minutes."
+
+      # Interface errors
+      - alert: InterfaceErrors
+        expr: rate(ifInErrors[5m]) > 1 or rate(ifOutErrors[5m]) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Interface errors on {{ $labels.ifDescr }} ({{ $labels.instance }})"
+          description: "Sustained error rate detected."
+
+  - name: stack_health
+    interval: 30s
+    rules:
+
+      # Prometheus target down
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Scrape target {{ $labels.instance }} ({{ $labels.job }}) is down"
+
+      # SNMP exporter scrape failures
+      - alert: SNMPScrapeFailure
+        expr: snmp_scrape_duration_seconds > 25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "SNMP scrape slow for {{ $labels.instance }}"
+          description: "SNMP scrape taking >25s — may indicate device unreachable or overloaded."

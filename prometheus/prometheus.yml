@@ -1,0 +1,97 @@
+# =============================================================================
+# Prometheus Configuration
+# =============================================================================
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  scrape_timeout: 10s
+
+# ---------------------------------------------------------------------------
+# Alertmanager
+# ---------------------------------------------------------------------------
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# ---------------------------------------------------------------------------
+# Recording and alerting rules
+# ---------------------------------------------------------------------------
+rule_files:
+  - /etc/prometheus/alerts/*.yml
+
+# ---------------------------------------------------------------------------
+# Scrape configs
+# ---------------------------------------------------------------------------
+scrape_configs:
+
+  # --- Prometheus self-monitoring ---
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # --- Grafana metrics ---
+  - job_name: grafana
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  # --- Loki metrics ---
+  - job_name: loki
+    static_configs:
+      - targets: ["loki:3100"]
+
+  # --- Alertmanager metrics ---
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  # --- Alloy metrics ---
+  - job_name: alloy
+    static_configs:
+      - targets: ["alloy:12345"]
+
+  # --- SNMP Exporter (relabel pattern) ---
+  # Targets are loaded from file_sd. Prometheus sends scrape requests to
+  # snmp-exporter with the device IP as a parameter.
+  - job_name: snmp
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/snmp_targets.json
+        refresh_interval: 5m
+    metrics_path: /snmp
+    params:
+      auth: [public_v2]
+      module: [if_mib]
+    relabel_configs:
+      # Use the target address as the SNMP target parameter
+      - source_labels: [__address__]
+        target_label: __param_target
+      # Keep the original target as the instance label
+      - source_labels: [__param_target]
+        target_label: instance
+      # Override the scrape address to point at snmp-exporter
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
+  # --- Telegraf (gNMI/streaming telemetry) ---
+  # Telegraf exposes collected metrics via prometheus_client output plugin.
+  - job_name: telegraf
+    static_configs:
+      - targets: ["telegraf:9273"]
+
+  # --- File-based service discovery for custom targets ---
+  # Use scripts/nautobot_sd.py to generate these from Nautobot inventory.
+  # - job_name: network_custom
+  #   file_sd_configs:
+  #     - files:
+  #         - /etc/prometheus/targets/custom_targets.json
+  #       refresh_interval: 5m
+
+  # --- Remote write receiver ---
+  # Prometheus is configured with --web.enable-remote-write-receiver
+  # so external agents (e.g., Grafana Agent, Alloy, Telegraf) can push
+  # metrics directly to http://prometheus:9090/api/v1/write
