@@ -32,12 +32,6 @@ gen_alphanum() {
     LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len" || true
 }
 
-gen_hex() {
-    # Generate a hex string of length $1 (in bytes, output is 2x chars)
-    local bytes="${1:-20}"
-    od -An -tx1 -N"$bytes" /dev/urandom | tr -d ' \n' || true
-}
-
 # ---------------------------------------------------------------------------
 # Prerequisites
 # ---------------------------------------------------------------------------
@@ -94,6 +88,7 @@ ALERTMANAGER_PORT=9093
 SNMP_EXPORTER_PORT=9116
 ALLOY_SYSLOG_UDP_PORT=1514
 ALLOY_SYSLOG_TCP_PORT=1514
+ALLOY_UI_PORT=12345
 MCP_GRAFANA_PORT=8686
 
 # --- PostgreSQL (Grafana backend) --------------------------------------------
@@ -147,5 +142,5 @@ echo ""
 echo "  Grafana UI:     http://localhost:${GRAFANA_PORT:-3000}"
 echo "  Prometheus UI:  http://localhost:${PROMETHEUS_PORT:-9090}"
 echo "  Loki API:       http://localhost:${LOKI_PORT:-3100}"
-echo "  Alloy UI:       http://localhost:12345"
+echo "  Alloy UI:       http://localhost:${ALLOY_UI_PORT:-12345}"
 echo ""
