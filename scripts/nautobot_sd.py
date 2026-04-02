@@ -82,17 +82,28 @@ def build_snmp_targets(devices):
         if not addr:
             continue
 
-        labels = {
-            "hostname": dev.get("name", "unknown"),
-            "site": dev.get("location", {}).get("name", "unknown") if dev.get("location") else "unknown",
-            "role": dev.get("role", {}).get("name", "unknown") if dev.get("role") else "unknown",
-            "vendor": dev.get("device_type", {}).get("manufacturer", {}).get("name", "unknown") if dev.get("device_type") else "unknown",
-            "platform": dev.get("platform", {}).get("name", "unknown") if dev.get("platform") else "unknown",
-            "nautobot_id": dev.get("id", ""),
-        }
-        # Clean empty/None values
-        labels = {k: str(v) for k, v in labels.items() if v and v != "unknown"}
-        labels.setdefault("hostname", dev.get("name", "unknown"))
+        hostname = dev.get("name", "unknown")
+        labels = {"hostname": hostname}
+
+        # Add optional labels when available
+        if dev.get("location"):
+            site = dev["location"].get("name")
+            if site:
+                labels["site"] = site
+        if dev.get("role"):
+            role = dev["role"].get("name")
+            if role:
+                labels["role"] = role
+        if dev.get("device_type"):
+            vendor = dev["device_type"].get("manufacturer", {}).get("name")
+            if vendor:
+                labels["vendor"] = vendor
+        if dev.get("platform"):
+            platform = dev["platform"].get("name")
+            if platform:
+                labels["platform"] = platform
+        if dev.get("id"):
+            labels["nautobot_id"] = str(dev["id"])
 
         targets.append({
             "targets": [addr],

@@ -51,8 +51,8 @@ Designed for lab deployment with a clear path to production.
 ## Quick Start
 
 ```bash
-git clone https://github.com/YOUR_ORG/network-observability.git
-cd network-observability
+git clone https://github.com/YOUR_ORG/o11y-composer.git
+cd o11y-composer
 chmod +x setup.sh reset.sh
 ./setup.sh
 docker compose up -d
@@ -180,7 +180,7 @@ All persistent data uses named Docker volumes:
 ## File Structure
 
 ```
-network-observability/
+o11y-composer/
 ├── setup.sh                      # Initialize .env and secrets
 ├── reset.sh                      # Teardown containers and volumes
 ├── docker-compose.yml            # Full stack definition

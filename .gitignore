@@ -1,0 +1,16 @@
+# Environment (contains secrets)
+.env
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
