@@ -53,14 +53,14 @@ scrape_configs:
       - targets: ["alloy:12345"]
 
   # --- SNMP Exporter (relabel pattern) ---
-  # Targets are loaded from file_sd. Prometheus sends scrape requests to
-  # snmp-exporter with the device IP as a parameter.
+  # Targets are served by the nautobot-sd adapter via HTTP service discovery.
+  # The adapter queries Nautobot for active devices and caches the results.
+  # For manual/static targets, use file_sd_configs with snmp_targets.json instead.
   - job_name: snmp
     scrape_interval: 60s
     scrape_timeout: 30s
-    file_sd_configs:
-      - files:
-          - /etc/prometheus/targets/snmp_targets.json
+    http_sd_configs:
+      - url: http://nautobot-sd:8000/targets
         refresh_interval: 5m
     metrics_path: /snmp
     params:
