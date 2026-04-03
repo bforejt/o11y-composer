@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
-nautobot_sd.py — Nautobot → Prometheus file_sd target generator
+nautobot_sd.py — Nautobot → Prometheus file_sd target generator (standalone)
 
-Pulls device inventory from Nautobot's REST API and writes Prometheus
-file_sd-compatible JSON target files for SNMP and other scrape jobs.
+NOTE: The primary approach for SNMP service discovery is now the HTTP SD
+adapter in nautobot-sd-adapter/. It runs as a container and serves targets
+to Prometheus via http_sd_configs — no file generation needed.
+
+This script is retained for:
+  - Manual target generation and debugging
+  - Environments that prefer the cron/file_sd workflow
+  - Generating target files for non-Prometheus consumers
 
 Usage:
     python3 nautobot_sd.py
@@ -12,9 +18,6 @@ Environment variables:
     NAUTOBOT_URL    — Nautobot base URL (e.g., https://nautobot.lab:8443)
     NAUTOBOT_TOKEN  — Nautobot API token
     OUTPUT_DIR      — Directory to write target files (default: ../prometheus/targets)
-
-Run via cron every 5–10 minutes, or as a systemd timer:
-    */5 * * * * /path/to/nautobot_sd.py
 
 The script writes atomically (write to .tmp, then rename) so Prometheus
 never reads a partial file.

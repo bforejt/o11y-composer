@@ -121,9 +121,11 @@ PROMETHEUS_RETENTION=30d
 # --- MCP Servers -------------------------------------------------------------
 MCP_GRAFANA_API_KEY=
 
-# --- Nautobot Integration ----------------------------------------------------
-# NAUTOBOT_URL=https://nautobot.lab:8443
-# NAUTOBOT_TOKEN=
+# --- Nautobot SD Adapter -----------------------------------------------------
+NAUTOBOT_URL=https://nautobot.lab:8443
+NAUTOBOT_TOKEN=
+SD_ADAPTER_PORT=8008
+SD_CACHE_TTL=300
 ENVEOF
 
     chmod 600 "$ENV_FILE"

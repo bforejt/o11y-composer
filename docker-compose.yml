@@ -182,6 +182,33 @@ services:
       - ./snmp-exporter/snmp.yml:/etc/snmp_exporter/snmp.yml:ro
 
   # ---------------------------------------------------------------------------
+  # Nautobot SD Adapter — HTTP service discovery for Prometheus
+  #
+  # Queries Nautobot for active devices, serves Prometheus http_sd_configs.
+  # Configure NAUTOBOT_URL and NAUTOBOT_TOKEN in .env before starting.
+  # ---------------------------------------------------------------------------
+  nautobot-sd:
+    build: ./nautobot-sd-adapter
+    restart: unless-stopped
+    profiles:
+      - snmp
+    networks:
+      - o11y
+    ports:
+      - "${SD_ADAPTER_PORT:-8008}:8000"
+    environment:
+      NAUTOBOT_URL: ${NAUTOBOT_URL:-}
+      NAUTOBOT_TOKEN: ${NAUTOBOT_TOKEN:-}
+      SD_CACHE_TTL: ${SD_CACHE_TTL:-300}
+      SD_LOG_LEVEL: ${SD_LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ---------------------------------------------------------------------------
   # Telegraf — gNMI streaming telemetry collector
   # ---------------------------------------------------------------------------
   telegraf:

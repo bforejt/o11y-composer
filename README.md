@@ -45,6 +45,7 @@ Designed for lab deployment with a clear path to production.
 | Alloy | 1514, 12345 | Syslog collection, Alloy UI |
 | PostgreSQL | (internal) | Grafana backend DB |
 | SNMP Exporter | 9116 | SNMP polling (profile: `snmp`) |
+| Nautobot SD | 8008 | HTTP service discovery (profile: `snmp`) |
 | Telegraf | 9273 | gNMI streaming (profile: `telemetry`) |
 | MCP Grafana | 8686 | LLM integration (profile: `mcp`) |
 
@@ -77,28 +78,18 @@ docker compose --profile snmp --profile telemetry --profile mcp up -d
 
 ### SNMP Targets
 
-Edit `prometheus/targets/snmp_targets.json` with your device IPs:
+When the `snmp` profile is active, the **Nautobot SD adapter** automatically queries Nautobot for active devices and serves them to Prometheus via HTTP service discovery. Configure `NAUTOBOT_URL` and `NAUTOBOT_TOKEN` in `.env` before starting.
 
-```json
-[
-  {
-    "targets": ["10.0.0.1"],
-    "labels": {
-      "hostname": "core-rtr01",
-      "site": "dc1",
-      "role": "router"
-    }
-  }
-]
-```
+The adapter caches results for 5 minutes (configurable via `SD_CACHE_TTL`) and handles Nautobot being unreachable by serving stale data.
 
-Or use `scripts/nautobot_sd.py` to auto-generate targets from Nautobot inventory:
+Check adapter status:
 
 ```bash
-export NAUTOBOT_URL=https://nautobot.lab:8443
-export NAUTOBOT_TOKEN=your_token
-python3 scripts/nautobot_sd.py
+curl http://localhost:8008/health    # status, cache age, target count
+curl http://localhost:8008/targets   # raw Prometheus target JSON
 ```
+
+**Manual alternative:** For environments that prefer static files or cron-based generation, use `scripts/nautobot_sd.py` and switch `prometheus/prometheus.yml` from `http_sd_configs` back to `file_sd_configs`.
 
 ### Syslog
 
@@ -140,7 +131,7 @@ Uncomment the service in `docker-compose.yml` and configure `MCP_PROMETHEUS_PORT
 
 ## Nautobot Integration
 
-This stack integrates with a separately deployed Nautobot instance for network inventory (SSoT). The integration point is `scripts/nautobot_sd.py`, which pulls active devices from Nautobot's REST API and writes Prometheus `file_sd` target files. Run it periodically via cron.
+This stack integrates with a separately deployed Nautobot instance for network inventory (SSoT). The **Nautobot SD adapter** (`nautobot-sd-adapter/`) runs as a container under the `snmp` profile, queries Nautobot's REST API for active devices, and serves them to Prometheus via HTTP service discovery. No cron jobs or file generation required.
 
 **Why separate projects?** Different failure domains, different lifecycles, different DB requirements. Nautobot upgrades involve DB migrations that shouldn't risk your monitoring stack, and vice versa.
 
@@ -243,12 +234,15 @@ o11y-composer/
 ├── .gitignore
 ├── LICENSE
 ├── README.md
+├── nautobot-sd-adapter/
+│   ├── adapter.py                # HTTP SD adapter (Nautobot → Prometheus)
+│   └── Dockerfile
 ├── prometheus/
 │   ├── prometheus.yml            # Scrape configs, alerting
 │   ├── alerts/
 │   │   └── network.yml           # Alert rules
 │   └── targets/
-│       └── snmp_targets.json     # SNMP device targets (file_sd)
+│       └── snmp_targets.json     # Example SNMP targets (manual/file_sd)
 ├── grafana/
 │   └── provisioning/
 │       ├── datasources/
