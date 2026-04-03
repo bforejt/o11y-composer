@@ -53,7 +53,7 @@ Designed for lab deployment with a clear path to production.
 ```bash
 git clone https://github.com/YOUR_ORG/o11y-composer.git
 cd o11y-composer
-chmod +x setup.sh reset.sh
+chmod +x setup.sh reset.sh backup.sh restore.sh
 ./setup.sh
 docker compose up -d
 ```
@@ -166,6 +166,59 @@ All persistent data uses named Docker volumes:
 ./reset.sh --full
 ```
 
+## Operations
+
+### Backup
+
+```bash
+# Back up everything (database + Grafana data)
+./backup.sh
+
+# Database only
+./backup.sh -t db
+
+# Grafana data only
+./backup.sh -t grafana
+
+# Custom output directory
+./backup.sh -d /mnt/backups
+```
+
+Backups are written to `./backups/` by default with timestamped filenames.
+
+### Restore
+
+```bash
+# Restore latest backup (database + Grafana)
+./restore.sh
+
+# Restore database only
+./restore.sh -t db
+
+# Restore a specific backup file
+./restore.sh --db-file backups/o11y_db_2025-01-15_120000.sql.gz
+```
+
+### Reset
+
+```bash
+# Interactive full reset (prompts for confirmation)
+./reset.sh
+
+# Skip confirmation
+./reset.sh --force
+
+# Reset and immediately re-run setup.sh
+./reset.sh --rebuild
+```
+
+### Viewing Logs
+
+```bash
+docker compose logs -f grafana
+docker compose logs -f prometheus loki
+```
+
 ## Production Considerations
 
 - **Pin image versions** in `.env` instead of using `latest`.
@@ -183,9 +236,12 @@ All persistent data uses named Docker volumes:
 o11y-composer/
 ├── setup.sh                      # Initialize .env and secrets
 ├── reset.sh                      # Teardown containers and volumes
+├── backup.sh                     # Back up database and Grafana data
+├── restore.sh                    # Restore from backups
 ├── docker-compose.yml            # Full stack definition
 ├── env.example                   # Template for .env
 ├── .gitignore
+├── LICENSE
 ├── README.md
 ├── prometheus/
 │   ├── prometheus.yml            # Scrape configs, alerting

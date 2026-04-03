@@ -27,9 +27,17 @@ ENV_FILE="${SCRIPT_DIR}/.env"
 # ---------------------------------------------------------------------------
 
 gen_alphanum() {
-    # Generate an alphanumeric string of length $1
+    # Generate an alphanumeric string of length $1.
+    # Read extra bytes to ensure we get enough after filtering.
+    # The || true on head prevents SIGPIPE (exit 141) under pipefail.
     local len="${1:-16}"
-    LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$len" || true
+    local result
+    result="$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c "$len")" || true
+    if [[ ${#result} -lt $len ]]; then
+        echo "ERROR: Failed to generate ${len}-char alphanumeric string." >&2
+        exit 1
+    fi
+    echo "$result"
 }
 
 # ---------------------------------------------------------------------------
@@ -43,6 +51,11 @@ if ! command -v docker &>/dev/null; then
     exit 1
 fi
 
+if ! docker info &>/dev/null; then
+    echo "ERROR: Docker daemon is not running or current user cannot access it." >&2
+    exit 1
+fi
+
 if ! docker compose version &>/dev/null; then
     echo "ERROR: 'docker compose' plugin not found." >&2
     exit 1
@@ -50,6 +63,7 @@ fi
 
 echo "  docker:         $(docker --version | awk '{print $3}' | tr -d ',')"
 echo "  docker compose: $(docker compose version --short)"
+echo "  daemon:         running"
 
 # ---------------------------------------------------------------------------
 # Generate .env
@@ -123,6 +137,7 @@ ENVEOF
     printf "  │  PostgreSQL password:    %-28s│\n" "$DB_PASS"
     echo "  └──────────────────────────────────────────────────────┘"
     echo ""
+    echo "  Save these now — they are not stored elsewhere."
 fi
 
 # ---------------------------------------------------------------------------
