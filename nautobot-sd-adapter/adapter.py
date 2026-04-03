@@ -128,6 +128,8 @@ def build_snmp_targets(devices):
 
 def refresh_cache():
     """Fetch devices from Nautobot and update the in-memory cache."""
+    if not NAUTOBOT_URL or not NAUTOBOT_TOKEN:
+        return
     try:
         log.info("Refreshing targets from %s", NAUTOBOT_URL)
         devices = nautobot_get(
@@ -220,20 +222,16 @@ def main():
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
 
-    if not NAUTOBOT_URL:
-        log.error("NAUTOBOT_URL is required")
-        sys.exit(1)
-    if not NAUTOBOT_TOKEN:
-        log.error("NAUTOBOT_TOKEN is required")
-        sys.exit(1)
-
     log.info("Nautobot SD Adapter starting")
-    log.info("  NAUTOBOT_URL:  %s", NAUTOBOT_URL)
-    log.info("  CACHE_TTL:     %ds", CACHE_TTL)
     log.info("  LISTEN_PORT:   %d", LISTEN_PORT)
+    log.info("  CACHE_TTL:     %ds", CACHE_TTL)
 
-    # Warm cache — non-fatal if Nautobot is unreachable.
-    refresh_cache()
+    if not NAUTOBOT_URL or not NAUTOBOT_TOKEN:
+        log.warning("NAUTOBOT_URL or NAUTOBOT_TOKEN not set — serving empty targets until configured")
+    else:
+        log.info("  NAUTOBOT_URL:  %s", NAUTOBOT_URL)
+        # Warm cache — non-fatal if Nautobot is unreachable.
+        refresh_cache()
 
     server = ThreadedHTTPServer(("0.0.0.0", LISTEN_PORT), SDHandler)
     log.info("Listening on 0.0.0.0:%d", LISTEN_PORT)
