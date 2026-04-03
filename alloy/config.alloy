@@ -20,14 +20,12 @@ loki.source.syslog "network_syslog" {
   listener {
     address      = "0.0.0.0:1514"
     protocol     = "udp"
-    label        = "syslog_udp"
     idle_timeout = "0s"
   }
 
   listener {
     address      = "0.0.0.0:1514"
     protocol     = "tcp"
-    label        = "syslog_tcp"
     idle_timeout = "120s"
   }
 
