@@ -96,15 +96,6 @@ services:
     volumes:
       - loki_data:/loki
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
-    healthcheck:
-      # Use /loki/api/v1/status/buildinfo instead of /ready — the /ready
-      # endpoint blocks until the compactor ring stabilizes (~10m on first
-      # start), which is far too long for a healthcheck dependency.
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3100/loki/api/v1/status/buildinfo || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # Alertmanager — Alert routing and notification
@@ -173,7 +164,7 @@ services:
       prometheus:
         condition: service_healthy
       loki:
-        condition: service_healthy
+        condition: service_started
 
   # ---------------------------------------------------------------------------
   # SNMP Exporter — SNMP polling for Prometheus
