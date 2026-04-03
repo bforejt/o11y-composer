@@ -127,7 +127,7 @@ The `mcp-grafana` service exposes an SSE endpoint at `http://HOST:8686/sse`. Con
 }
 ```
 
-**Note:** Generate a Grafana service account API key (Administration → Service Accounts → Create token with Viewer or Editor role) and set `MCP_GRAFANA_API_KEY` in `.env` before starting the MCP profile.
+**Note:** Generate a Grafana service account token (Administration → Service Accounts → Create token with Viewer or Editor role) and set `MCP_GRAFANA_API_KEY` in `.env` before starting the MCP profile.
 
 #### When to add the deep Prometheus MCP server
 

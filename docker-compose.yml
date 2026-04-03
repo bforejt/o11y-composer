@@ -207,21 +207,20 @@ services:
   # Connect via: http://HOST:8686/sse
   # ---------------------------------------------------------------------------
   mcp-grafana:
-    image: ghcr.io/grafana/mcp-grafana:${MCP_GRAFANA_VERSION:-latest}
+    image: grafana/mcp-grafana:${MCP_GRAFANA_VERSION:-latest}
     restart: unless-stopped
     profiles:
       - mcp
     networks:
       - o11y
     ports:
-      - "${MCP_GRAFANA_PORT:-8686}:8686"
+      - "${MCP_GRAFANA_PORT:-8686}:8000"
     environment:
       GRAFANA_URL: http://grafana:3000
-      GRAFANA_API_KEY: ${MCP_GRAFANA_API_KEY:-}
+      GRAFANA_SERVICE_ACCOUNT_TOKEN: ${MCP_GRAFANA_API_KEY:-}
     command:
-      - "--transport=sse"
-      - "--port=8686"
-      - "--disable-write"
+      - "-t"
+      - "sse"
     depends_on:
       - grafana
 
