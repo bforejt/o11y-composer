@@ -97,11 +97,14 @@ services:
       - loki_data:/loki
       - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3100/ready || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
+      # Use /loki/api/v1/status/buildinfo instead of /ready — the /ready
+      # endpoint blocks until the compactor ring stabilizes (~10m on first
+      # start), which is far too long for a healthcheck dependency.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3100/loki/api/v1/status/buildinfo || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # ---------------------------------------------------------------------------
   # Alertmanager — Alert routing and notification
