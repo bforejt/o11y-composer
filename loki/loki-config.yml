@@ -53,6 +53,8 @@ compactor:
   delete_request_store: filesystem
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
+  # Reduce ring stability wait from default 10m — unnecessary for single instance.
+  ring_check_period: 30s
 
 analytics:
   reporting_enabled: false
