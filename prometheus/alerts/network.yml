@@ -63,3 +63,31 @@ groups:
         annotations:
           summary: "SNMP scrape slow for {{ $labels.instance }}"
           description: "SNMP scrape taking >25s — may indicate device unreachable or overloaded."
+
+  - name: globalprotect
+    interval: 60s
+    rules:
+
+      # GlobalProtect tunnel utilization high
+      - alert: GlobalProtectHighUtilization
+        expr: panGPGWUtilizationPctActive > 80
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GlobalProtect utilization >80% on {{ $labels.instance }}"
+          description: >-
+            {{ $labels.hostname }} GP gateway at {{ $value }}%
+            utilization for 10+ minutes.
+
+      # GlobalProtect tunnel utilization critical
+      - alert: GlobalProtectCriticalUtilization
+        expr: panGPGWUtilizationPctActive > 95
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GlobalProtect utilization >95% on {{ $labels.instance }}"
+          description: >-
+            {{ $labels.hostname }} GP gateway at {{ $value }}%
+            utilization — near capacity.

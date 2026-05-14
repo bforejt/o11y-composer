@@ -91,6 +91,19 @@ curl http://localhost:8008/targets   # raw Prometheus target JSON
 
 **Manual alternative:** For environments that prefer static files or cron-based generation, use `scripts/nautobot_sd.py` and switch `prometheus/prometheus.yml` from `http_sd_configs` back to `file_sd_configs`.
 
+### SNMP Modules
+
+The SNMP exporter ships with `if_mib` (interface metrics, works with any device) and `paloalto_gp` (GlobalProtect gateway utilization). To add new vendor-specific modules:
+
+1. Add MIB files to `snmp-exporter/generator/mibs/`.
+2. Define the module in `snmp-exporter/generator/generator.yml`.
+3. Run `snmp-exporter/generator/generate.sh` and deploy the output.
+4. Add a Prometheus scrape job in `prometheus/prometheus.yml` with a vendor label filter.
+
+See `snmp-exporter/generator/README.md` for detailed instructions.
+
+Prometheus routes modules to the correct devices using vendor labels from Nautobot SD. Each module gets its own scrape job with a `relabel_configs` `keep` filter, so devices are only scraped with modules relevant to their vendor.
+
 ### Syslog
 
 Point devices to send syslog to `HOST:1514` (UDP or TCP). Alloy listens on 1514 to avoid requiring root. To accept syslog on the standard port 514, add iptables redirect on the Docker host:
@@ -259,7 +272,11 @@ o11y-composer/
 ├── telegraf/
 │   └── telegraf.conf             # gNMI streaming telemetry
 ├── snmp-exporter/
-│   └── snmp.yml                  # SNMP exporter modules/auth
+│   ├── snmp.yml                  # SNMP exporter modules/auth
+│   └── generator/                # Offline snmp.yml generator
+│       ├── generator.yml         # Module/OID definitions
+│       ├── generate.sh           # Run generator via Docker
+│       └── mibs/                 # Vendor MIB files
 └── scripts/
     └── nautobot_sd.py            # Nautobot → Prometheus targets
 ```

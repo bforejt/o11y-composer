@@ -52,28 +52,55 @@ scrape_configs:
     static_configs:
       - targets: ["alloy:12345"]
 
-  # --- SNMP Exporter (relabel pattern) ---
+  # --- SNMP: Interface metrics (all devices) ---
   # Targets are served by the nautobot-sd adapter via HTTP service discovery.
   # The adapter queries Nautobot for active devices and caches the results.
   # For manual/static targets, use file_sd_configs with snmp_targets.json instead.
-  - job_name: snmp
+  - job_name: snmp_interfaces
     scrape_interval: 60s
     scrape_timeout: 30s
     http_sd_configs:
       - url: http://nautobot-sd:8000/targets
         refresh_interval: 5m
+    # Alternative: static targets for testing without Nautobot
+    # file_sd_configs:
+    #   - files: ['/etc/prometheus/targets/snmp_targets.json']
     metrics_path: /snmp
     params:
       auth: [public_v2]
       module: [if_mib]
     relabel_configs:
-      # Use the target address as the SNMP target parameter
       - source_labels: [__address__]
         target_label: __param_target
-      # Keep the original target as the instance label
       - source_labels: [__param_target]
         target_label: instance
-      # Override the scrape address to point at snmp-exporter
+      - target_label: __address__
+        replacement: snmp-exporter:9116
+
+  # --- SNMP: Palo Alto GlobalProtect gateway metrics ---
+  # Filtered to Palo Alto devices only via vendor label from Nautobot SD.
+  - job_name: snmp_paloalto_gp
+    scrape_interval: 60s
+    scrape_timeout: 30s
+    http_sd_configs:
+      - url: http://nautobot-sd:8000/targets
+        refresh_interval: 5m
+    # Alternative: static targets for testing without Nautobot
+    # file_sd_configs:
+    #   - files: ['/etc/prometheus/targets/snmp_targets.json']
+    metrics_path: /snmp
+    params:
+      auth: [public_v2]
+      module: [paloalto_gp]
+    relabel_configs:
+      # Only scrape Palo Alto devices with this module
+      - source_labels: [vendor]
+        regex: "Palo Alto.*"
+        action: keep
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
       - target_label: __address__
         replacement: snmp-exporter:9116
 

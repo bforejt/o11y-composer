@@ -21,5 +21,17 @@
       "vendor": "example",
       "hostname": "lab-sw01"
     }
+  },
+  {
+    "targets": [
+      "10.0.1.1"
+    ],
+    "labels": {
+      "site": "lab",
+      "role": "firewall",
+      "vendor": "Palo Alto",
+      "platform": "panos",
+      "hostname": "lab-pa01"
+    }
   }
 ]

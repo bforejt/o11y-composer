@@ -1,0 +1,80 @@
+# =============================================================================
+# snmp_exporter Generator Configuration
+#
+# Input file for the Prometheus snmp_exporter generator. Defines SNMP modules
+# and auth profiles. Run generate.sh to produce snmp.yml from this file.
+#
+# Docs: https://github.com/prometheus/snmp_exporter/tree/main/generator
+# =============================================================================
+
+auths:
+  public_v2:
+    community: public
+    security_level: noAuthNoPriv
+    auth_protocol: MD5
+    priv_protocol: DES
+    version: 2
+
+  # SNMPv3 template — customize for your environment
+  # v3_readonly:
+  #   security_level: authPriv
+  #   username: snmp_monitor
+  #   password: auth_password_here
+  #   auth_protocol: SHA
+  #   priv_protocol: AES
+  #   priv_password: priv_password_here
+  #   version: 3
+
+modules:
+  # ---------------------------------------------------------------------------
+  # Interface metrics — works with most SNMP-enabled devices
+  # ---------------------------------------------------------------------------
+  if_mib:
+    walk:
+      - ifDescr
+      - ifType
+      - ifSpeed
+      - ifHighSpeed
+      - ifAdminStatus
+      - ifOperStatus
+      - ifHCInOctets
+      - ifHCOutOctets
+      - ifInErrors
+      - ifOutErrors
+      - ifInDiscards
+      - ifOutDiscards
+      - ifAlias
+    lookups:
+      - source_indexes: [ifIndex]
+        lookup: ifDescr
+      - source_indexes: [ifIndex]
+        lookup: ifAlias
+    overrides:
+      ifType:
+        type: EnumAsInfo
+      ifAdminStatus:
+        type: EnumAsStateSet
+      ifOperStatus:
+        type: EnumAsStateSet
+
+  # ---------------------------------------------------------------------------
+  # Palo Alto GlobalProtect gateway utilization
+  #
+  # Requires MIBs: PAN-COMMON-MIB, PAN-GLOBALPROTECT-MIB, PAN-PRODUCTS-MIB
+  # OID: 1.3.6.1.4.1.25461.2.1.2.5.1 (panGPGWUtilizationTable)
+  #
+  # Metrics:
+  #   panGPGWUtilizationActiveTunnels  (.3) — current active tunnel count
+  #   panGPGWUtilizationMaxTunnels     (.4) — maximum supported tunnels
+  #   panGPGWUtilizationPctActive      (.5) — utilization percentage
+  # ---------------------------------------------------------------------------
+  paloalto_gp:
+    walk:
+      - 1.3.6.1.4.1.25461.2.1.2.5.1
+    overrides:
+      panGPGWUtilizationActiveTunnels:
+        type: gauge
+      panGPGWUtilizationMaxTunnels:
+        type: gauge
+      panGPGWUtilizationPctActive:
+        type: gauge

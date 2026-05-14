@@ -69,3 +69,23 @@ modules:
         type: EnumAsStateSet
       ifOperStatus:
         type: EnumAsStateSet
+
+  # Palo Alto GlobalProtect gateway utilization
+  # Hand-written using numeric OIDs (no MIB files required).
+  # Regenerate from generator/generator.yml with MIBs for full resolution.
+  paloalto_gp:
+    walk:
+      - 1.3.6.1.4.1.25461.2.1.2.5.1
+    metrics:
+      - name: panGPGWUtilizationActiveTunnels
+        oid: 1.3.6.1.4.1.25461.2.1.2.5.1.3
+        type: gauge
+        help: Number of active GlobalProtect tunnels on the gateway.
+      - name: panGPGWUtilizationMaxTunnels
+        oid: 1.3.6.1.4.1.25461.2.1.2.5.1.4
+        type: gauge
+        help: Maximum number of GlobalProtect tunnels supported.
+      - name: panGPGWUtilizationPctActive
+        oid: 1.3.6.1.4.1.25461.2.1.2.5.1.5
+        type: gauge
+        help: Percentage of active GlobalProtect tunnel capacity.

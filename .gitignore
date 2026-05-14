@@ -27,3 +27,9 @@ Thumbs.db
 # Backups
 *.sql
 *.sql.gz
+
+# Vendor MIB files (may have license restrictions)
+snmp-exporter/generator/mibs/*.mib
+
+# Generator output (only the deployed snmp.yml is committed)
+snmp-exporter/generator/snmp.yml
